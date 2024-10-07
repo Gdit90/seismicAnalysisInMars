@@ -284,6 +284,21 @@ for(i in 1:n_new_signals){
   post_deep_impact <- posteriors[2]
   post_shallow_impact <- posteriors[3]
   
-  print(data.frame(post_deep_shallow, post_deep_impact, post_shallow_impact))
+  mean_probability_deep <- (post_deep_shallow + post_deep_impact)/2
+  mean_probability_impact <- ((1-post_deep_impact)+(1-post_shallow_impact))/2
+  mean_probability_shallow <- ((1-post_deep_shallow)+post_shallow_impact)/2
+  
+  means <- c(mean_probability_deep, mean_probability_impact, mean_probability_shallow)
+  max_mean <- max(means)
+  
+  index <- which(means == max_mean)
+  
+  if(index == 1){
+    print("We could classify this wave as a deep type")  
+  } else if(index == 2){
+    print("We could classify this wave as a impact type")  
+  } else {
+    print("We could classify this wave as a shallow type")  
+  }
 }
 ```
