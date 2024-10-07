@@ -1,0 +1,289 @@
+---
+title: NASA Seismic
+author:
+  - "Maria Carolina Navarro Monge"
+  - "Jose Pablo Trejos Conejo"
+output:
+  rmdformats::robobook:
+        code_folding: show
+  html_document:
+    toc: TRUE
+    toc_depth: 2
+---
+
+
+# Libraries
+```{r, warning=F, message=F}
+library(readr)
+library(astsa)
+library(lubridate)
+library(eseis)
+library(tidyverse)
+library(data.table)
+```
+
+# Data loading
+## First we read the directories
+```{r}
+file_list <- list.files(path = "./space_apps_2024_seismic_detection/space_apps_2024_seismic_detection/data/lunar/training/data/S12_GradeA/",
+                         pattern = "\\.mseed$",
+                         full.names = T)
+
+files <- list()
+for (i in 1:length(file_list)) {
+  files[[i]] <- read_mseed(file_list[i])
+}
+```
+
+
+```{r, warning=F, message=F}
+test_directory_S12_GradeB <- list.files(path = "./space_apps_2024_seismic_detection/space_apps_2024_seismic_detection/data/lunar/test/data/S12_GradeB/",
+                                        pattern = "\\.mseed$",
+                                        full.names = T)
+
+test_files_S12_GradeB <- list()
+
+for (i in 1:length(test_directory_S12_GradeB)) {
+  test_files_S12_GradeB[[i]] <- read_mseed(test_directory_S12_GradeB[i])
+}
+```
+
+
+```{r, warning=F, message=F}
+test_directory_S15_GradeA <- list.files(path = "./space_apps_2024_seismic_detection/space_apps_2024_seismic_detection/data/lunar/test/data/S15_GradeA/",
+                                        pattern = "\\.mseed$",
+                                        full.names = T)
+
+test_files_S15_GradeA <- list()
+
+for (i in 1:length(test_directory_S15_GradeA)) {
+  test_files_S15_GradeA[[i]] <- read_mseed(test_directory_S15_GradeA[i])
+}
+```
+
+
+```{r, warning=F, message=F}
+test_directory_S15_GradeB <- list.files(path = "./space_apps_2024_seismic_detection/space_apps_2024_seismic_detection/data/lunar/test/data/S15_GradeB/",
+                                        pattern = "\\.mseed$",
+                                        full.names = T)
+
+test_files_S15_GradeB <- list()
+
+for (i in 1:length(test_directory_S15_GradeB)) {
+  test_files_S15_GradeB[[i]] <- read_mseed(test_directory_S15_GradeB[i])
+}
+```
+
+
+```{r, warning=F, message=F}
+test_directory_S16_GradeA <- list.files(path = "./space_apps_2024_seismic_detection/space_apps_2024_seismic_detection/data/lunar/test/data/S16_GradeA/",
+                                        pattern = "\\.mseed$",
+                                        full.names = T)
+
+test_files_S16_GradeA <- list()
+
+for (i in 1:length(test_directory_S16_GradeA)) {
+  test_files_S16_GradeA[[i]] <- read_mseed(test_directory_S16_GradeA[i])
+}
+```
+
+
+```{r}
+test_directory_S16_GradeB <- list.files(path = "./space_apps_2024_seismic_detection/space_apps_2024_seismic_detection/data/lunar/test/data/S16_GradeB/",
+                                        pattern = "\\.mseed$",
+                                        full.names = T)
+
+test_files_S16_GradeB <- list()
+
+for (i in 1:length(test_directory_S16_GradeB)) {
+  test_files_S16_GradeB[[i]] <- read_mseed(test_directory_S16_GradeB[i])
+}
+```
+
+
+## Catalog reading for detection
+```{r message=FALSE}
+catalog <- read_csv("space_apps_2024_seismic_detection/space_apps_2024_seismic_detection/data/lunar/training/catalogs/apollo12_catalog_GradeA_final.csv")
+
+index_impact <- which(catalog$mq_type == "impact_mq")
+index_shallow <- which(catalog$mq_type == "shallow_mq")
+index_deep <- which(catalog$mq_type == "deep_mq")
+```
+
+## Dataframe creation function
+```{r}
+generate_df <- function(indexes){
+  signals <- list()
+  
+  for (i in 1:length(indexes)) {
+    signals[[i]] <- files[[indexes[i]]]$signal
+  }
+  
+  df <- do.call("cbind", signals)
+  
+  na <-  apply(df, 2, function(x) which(is.na(x))[1])
+  
+  min_na <- min(na, na.rm = T)
+  
+  df <- df[1:(min_na-1),]
+  
+  return(df)
+}
+```
+
+```{r}
+generate_matrix <- function(files_list){
+  signals_list <- list()
+  n_files <- length(files_list)
+  
+  for (i in 1:n_files) {
+    signals_list[[i]] <- files_list[[i]]$signal
+  }
+  
+  signals_matrix <- do.call("cbind", signals_list)
+  
+  first_nas_index <-  apply(signals_matrix, 2, function(x) which(is.na(x))[1])
+  
+  first_na <- min(first_nas_index, na.rm = T)
+  
+  signals_matrix <- signals_matrix[1:(first_na-1),]
+  
+  return(signals_matrix)
+}
+```
+
+
+```{r, warning=F, message=F}
+test_matrix_S12_GradeB <- generate_matrix(test_files_S12_GradeB)
+test_matrix_S15_GradeA <- generate_matrix(test_files_S15_GradeA)
+test_matrix_S15_GradeB <- generate_matrix(test_files_S15_GradeB)
+test_matrix_S16_GradeA <- generate_matrix(test_files_S16_GradeA)
+test_matrix_S16_GradeB <- generate_matrix(test_files_S16_GradeB)
+```
+
+
+
+## Dataframe generation
+```{r warning=FALSE}
+df_deep <- generate_df(index_deep)
+df_shallow <- generate_df(index_shallow)
+df_impact <- generate_df(index_impact)
+```
+
+## Fourier
+```{r}
+fourier_df <- function(df){
+  n <- nrow(df)
+  fs <- 100
+  
+  fft_matrix <- apply(df, 2, fft)
+  frequencies <- (0:(n-1)) * (fs / n)
+  
+  cutoff_freq <- 1 
+  cutoff_index <- which(frequencies >= cutoff_freq)[1]
+  
+  low_freq_matrix <- fft_matrix
+  low_freq_matrix[(cutoff_index+1):(n-cutoff_index),] <- 0
+  low_freq_signal_matrix <- apply(low_freq_matrix, 2, function(x) Re(fft(x, inverse = TRUE)) / n)
+  
+  high_freq_matrix <- fft_matrix
+  high_freq_matrix[1:(cutoff_index-1),] <- 0 
+  high_freq_signal_matrix <- apply(high_freq_matrix, 2, function(x) Re(fft(x, inverse = TRUE)) / n)
+  
+  return(list(low_freq_signal_matrix, high_freq_signal_matrix))
+}
+```
+
+
+
+```{r}
+list_low_high_deep <- fourier_df(df_deep)
+list_low_high_shallow <- fourier_df(df_shallow)
+list_low_high_impact <- fourier_df(df_impact)
+
+test_list_S12_GradeB_low_high <- fourier_df(test_matrix_S12_GradeB)
+#test_list_S15_GradeA_low_high <- fourier_df(test_matrix_S15_GradeA)
+#test_list_S15_GradeB_low_high <- fourier_df(test_matrix_S15_GradeB)
+#test_list_S16_GradeA_low_high <- fourier_df(test_matrix_S16_GradeA)
+#test_list_S16_GradeB_low_high <- fourier_df(test_matrix_S16_GradeB)
+```
+
+## Function for max differences
+```{r}
+max_dff <- function(df){
+  mag <- apply(df, 2, max) - apply(df, 2, min)
+  
+  return(mag)
+}
+```
+
+# Main Code
+```{r}
+mag_low_deep <- max_dff(list_low_high_deep[[1]])
+mag_low_shallow <- max_dff(list_low_high_shallow[[1]])
+mag_low_impact <- max_dff(list_low_high_impact[[1]])
+
+mag_high_deep <- max_dff(list_low_high_deep[[2]])
+mag_high_shallow <- max_dff(list_low_high_shallow[[2]])
+mag_high_impact <- max_dff(list_low_high_impact[[2]])
+
+cov_deep <- var(cbind(mag_low_deep, mag_high_deep))
+cov_shallow <- var(cbind(mag_low_shallow, mag_high_shallow))
+cov_impact <- var(cbind(mag_low_impact, mag_high_impact))
+
+cov_pooled <- (cov_deep + cov_shallow + cov_impact)/3
+
+means_deep <- colMeans(cbind(mag_low_deep, mag_high_deep))
+means_shallow <- colMeans(cbind(mag_low_shallow, mag_high_shallow))
+means_impact <- colMeans(cbind(mag_low_impact, mag_high_impact))
+
+slopes_deep <- solve(cov_pooled, means_deep)
+slopes_shallow <- solve(cov_pooled, means_shallow)
+slopes_impact <- solve(cov_pooled, means_impact)
+
+inter_deep <- -sum(slopes_deep*means_deep)/2
+inter_shallow <- -sum(slopes_shallow*means_shallow)/2
+inter_impact <- -sum(slopes_impact*means_impact)/2
+
+d_slopes_d_s = slopes_deep - slopes_shallow
+d_slopes_d_i = slopes_deep - slopes_impact
+d_slopes_s_i = slopes_shallow - slopes_impact
+
+d_inter_d_s = inter_deep - inter_shallow
+d_inter_d_i = inter_deep - inter_impact
+d_inter_s_i = inter_shallow - inter_impact
+
+```
+
+```{r}
+softmax <- function(x) {
+  exp_x <- exp(x - max(x))  # Restar el máximo por estabilidad numérica
+  return(exp_x / sum(exp_x))
+}
+```
+
+
+## Type of quake clasification
+```{r}
+test_mag_S12_GradeB_low <- max_dff(test_list_S12_GradeB_low_high[[1]])
+test_mag_S12_GradeB_high <- max_dff(test_list_S12_GradeB_low_high[[2]])
+
+n_new_signals <- length(test_mag_S12_GradeB_low)
+for(i in 1:n_new_signals){
+  mag <- cbind(test_mag_S12_GradeB_low[i], test_mag_S12_GradeB_high[i])
+  
+  disimilarity_deep_shallow <- sum(d_slopes_d_s*mag) + d_inter_d_s
+  disimilarity_deep_impact <- sum(d_slopes_d_i*mag) + d_inter_d_i
+  disimilarity_shallow_impact <- sum(d_slopes_s_i*mag) + d_inter_s_i
+
+  posteriors <- softmax(c(disimilarity_deep_shallow, 
+                          disimilarity_deep_impact,
+                          disimilarity_shallow_impact))
+ 
+  post_deep_shallow <- posteriors[1]
+  post_deep_impact <- posteriors[2]
+  post_shallow_impact <- posteriors[3]
+  
+  print(data.frame(post_deep_shallow, post_deep_impact, post_shallow_impact))
+}
+```
