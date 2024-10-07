@@ -3,4 +3,4 @@ These scripts are from the team Forbes Space Analytica for the NASA Space Apps C
 It contains: One script for data visualization in Python, one script with the algorithm 'magnitude discriminant' wrote in R language, and one python file with the premilinary version of the GUI.
 These scripts are NOT fully developed, since we weren't able to joint them together due to time limitations, however with the few tests we we're able to run we find the scripts are able to generate the detection.
 
-Thanks NASA for this oportunity!
+Thanks NASA for the oportunity!
